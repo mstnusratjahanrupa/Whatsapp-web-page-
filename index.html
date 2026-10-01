@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>হোয়াটসঅ্যাপ পেয়ারিং কোড কন্ট্রোল প্যানেল</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        body {
+            background-color: #f4f7f6;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        .container {
+            background: #ffffff;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            text-align: center;
+            max-width: 450px;
+            width: 100%;
+        }
+        h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 22px;
+        }
+        .otp-container {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 30px;
+            gap: 5px;
+        }
+        .otp-input {
+            width: 45px;
+            height: 50px;
+            border: 2px solid #ccc;
+            border-radius: 6px;
+            text-align: center;
+            font-size: 20px;
+            font-weight: bold;
+            text-transform: uppercase;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .otp-input:focus {
+            border-color: #007bff;
+        }
+        .btn-start {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 40px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 6px;
+            cursor: pointer;
+            width: 100%;
+            transition: background-color 0.2s;
+        }
+        .btn-start:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .btn-start:hover:not(:disabled) {
+            background-color: #0056b3;
+        }
+        .status {
+            margin-top: 15px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>হোয়াটসঅ্যাপ পেয়ারিং কোড প্যানেল</h2>
+    
+    <!-- ৮টি কোড ইনপুট বক্স -->
+    <div class="otp-container">
+        <input type="text" class="otp-input" maxlength="1" autofocus>
+        <input type="text" class="otp-input" maxlength="1">
+        <input type="text" class="otp-input" maxlength="1">
+        <input type="text" class="otp-input" maxlength="1">
+        <input type="text" class="otp-input" maxlength="1">
+        <input type="text" class="otp-input" maxlength="1">
+        <input type="text" class="otp-input" maxlength="1">
+        <input type="text" class="otp-input" maxlength="1">
+    </div>
+
+    <button id="startBtn" class="btn-start" disabled>START</button>
+    <div id="statusMsg" class="status"></div>
+</div>
+
+<!-- ফায়ারবেস লাইব্রেরি ইমপোর্ট (Firebase SDK - Modular v10+) -->
+<script type="module">
+    import { initializeApp } from "https://gstatic.com";
+    import { getAnalytics } from "https://gstatic.com";
+    import { getDatabase, ref, set } from "https://gstatic.com";
+
+    // আপনার ফায়ারবেস প্রজেক্টের আসল কনফিগারেশন ডাটা যুক্ত করা হলো
+    const firebaseConfig = {
+      apiKey: "AIzaSyCxw5lLdJ23r-7f9UqplDQCYIBzL26YGWA",
+      authDomain: "whatsapp-web-control.firebaseapp.com",
+      projectId: "whatsapp-web-control",
+      storageBucket: "whatsapp-web-control.firebasestorage.app",
+      messagingSenderId: "679350108475",
+      appId: "1:679350108475:web:633f6f992c09e42b08f71e",
+      measurementId: "G-MQW8TPW0B1"
+    };
+
+    // ফায়ারবেস ইনিশিয়ালাইজেশন
+    const app = initializeApp(firebaseConfig);
+    const analytics = getAnalytics(app);
+    const database = getDatabase(app);
+
+    // UI এলিমেন্ট সিলেকশন
+    const inputs = document.querySelectorAll('.otp-input');
+    const startBtn = document.getElementById('startBtn');
+    const statusMsg = document.getElementById('statusMsg');
+
+    // ইনপুট বক্সগুলোর অটো-ফোকাস এবং ব্যাকস্পেস লজিক
+    inputs.forEach((input, index) => {
+        input.addEventListener('input', (e) => {
+            input.value = input.value.toUpperCase(); // অটো বড় হাতের অক্ষর
+            if (input.value.length === 1 && index < inputs.length - 1) {
+                inputs[index + 1].focus(); // পরের বক্সে ফোকাস যাবে
+            }
+            checkFullCode();
+        });
+
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Backspace' && input.value.length === 0 && index > 0) {
+                inputs[index - 1].focus(); // ব্যাকস্পেস চাপলে আগের বক্সে ফোকাস ফেরত আসবে
+            }
+        });
+    });
+
+    // ৮টি বক্স পূর্ণ হয়েছে কি না চেক করে বাটন একটিভ করা
+    function checkFullCode() {
+        const fullCode = Array.from(inputs).map(i => i.value).join('');
+        startBtn.disabled = fullCode.length !== 8;
+    }
+
+    // START বাটন ক্লিক লজিক (ফায়ারবেসে ডাটা পুশ)
+    startBtn.addEventListener('click', () => {
+        const fullCode = Array.from(inputs).map(i => i.value).join('');
+        
+        statusMsg.style.color = "blue";
+        statusMsg.innerText = "কোড পাঠানো হচ্ছে...";
+
+        // রিয়ালটাইম ডেটাবেজের "whatsapp_pairing_code" নোডে কোড পাঠানো হচ্ছে
+        set(ref(database, 'whatsapp_pairing_code'), fullCode)
+            .then(() => {
+                statusMsg.style.color = "green";
+                statusMsg.innerText = "কোড সফলভাবে পাঠানো হয়েছে!";
+                
+                // সফলভাবে সাবমিট হওয়ার পর বক্স খালি ও রিসেট করা
+                inputs.forEach(i => i.value = '');
+                startBtn.disabled = true;
+                inputs[0].focus();
+            })
+            .catch((error) => {
+                statusMsg.style.color = "red";
+                statusMsg.innerText = "ব্যর্থ হয়েছে: " + error.message;
+            });
+    });
+</script>
+
+</body>
+</html>
